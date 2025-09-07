@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+import csv, json, os, time, sys
+from datetime import datetime
+
+# Enviro+ sensors
+from enviroplus import gas
+from bme280 import BME280
+from pms5003 import PMS5003, ReadTimeoutError
+
+LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+os.makedirs(LOG_DIR, exist_ok=True)
+CSV_PATH = os.path.join(LOG_DIR, "air_quality_log.csv")
+
+# Init sensors
+bme280 = BME280()                 # I2C default address 0x76
+pms = PMS5003()                   # UART on Pi (GPIO14/15) via Enviro+ cable
+
+# CSV header
+HEADER = [
+    "timestamp_iso",
+    "temperature_c", "humidity_pct", "pressure_hpa",
+    "gas_oxidising_kohm", "gas_reducing_kohm", "gas_nh3_kohm",
+    "pm1_ugm3", "pm2_5_ugm3", "pm10_ugm3"
+]
+
+def ensure_csv_header(path):
+    exists = os.path.exists(path)
+    if not exists or os.path.getsize(path) == 0:
+        with open(path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(HEADER)
+
+def read_all():
+    # BME280
+    temp_c = bme280.get_temperature()
+    humidity = bme280.get_humidity()
+    pressure = bme280.get_pressure()
+
+    # Gas (kΩ)
+    g = gas.read_all()
+    gas_vals = {
+        "oxidising_kohm": g.oxidising / 1000.0,
+        "reducing_kohm":  g.reducing  / 1000.0,
+        "nh3_kohm":       g.nh3       / 1000.0
+    }
+
+    # PMS5003 (may timeout)
+    pm1 = pm25 = pm10 = None
+    try:
+        pm = pms.read()
+        pm1, pm25, pm10 = pm.pm_ug_per_m3(1.0), pm.pm_ug_per_m3(2.5), pm.pm_ug_per_m3(10)
+    except ReadTimeoutError:
+        # Keep None; we’ll still log BME/GAS
+        pass
+
+    return {
+        "temperature_c": round(temp_c, 2),
+        "humidity_pct": round(humidity, 2),
+        "pressure_hpa": round(pressure, 2),
+        "gas_oxidising_kohm": round(gas_vals["oxidising_kohm"], 3),
+        "gas_reducing_kohm":  round(gas_vals["reducing_kohm"], 3),
+        "gas_nh3_kohm":       round(gas_vals["nh3_kohm"], 3),
+        "pm1_ugm3": pm1,
+        "pm2_5_ugm3": pm25,
+        "pm10_ugm3": pm10
+    }
+
+def main():
+    interval = float(os.getenv("SAMPLE_INTERVAL_SEC", "5"))
+    ensure_csv_header(CSV_PATH)
+    print(f"[sensor] logging to {CSV_PATH} every {interval}s", file=sys.stderr)
+
+    while True:
+        ts = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        vals = read_all()
+        out = {"ts": ts, **vals}
+        # console for quick checks
+        print(json.dumps(out))
+        # append CSV
+        with open(CSV_PATH, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                ts,
+                vals["temperature_c"], vals["humidity_pct"], vals["pressure_hpa"],
+                vals["gas_oxidising_kohm"], vals["gas_reducing_kohm"], vals["gas_nh3_kohm"],
+                vals["pm1_ugm3"], vals["pm2_5_ugm3"], vals["pm10_ugm3"]
+            ])
+        time.sleep(interval)
+
+if __name__ == "__main__":
+    main()
