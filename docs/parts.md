@@ -1,0 +1,4 @@
+- Raspberry Pi Zero WH + 5V 2.5A supply
+- Pimoroni Enviro+ (with BME280 + gas sensor)
+- PMS5003 particulate sensor + cable
+- microSD, case, jumper wires
