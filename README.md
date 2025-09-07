@@ -16,6 +16,15 @@ This project is a Raspberry Pi Zero WH–based air quality monitoring system usi
 - Displayed live readings on Raspberry Pi terminal and optional web interface.
 - Supported export to CSV for further analysis.
 
+## Data Logging Format
+
+The sensor logs data in CSV format (`air_quality_log.csv`) with the following columns:
+
+timestamp_iso, temperature_c, humidity_pct, pressure_hpa,
+gas_oxidising_kohm, gas_reducing_kohm, gas_nh3_kohm,
+pm1_ugm3, pm2_5_ugm3, pm10_ugm3
+
+
 ## Lessons Learned
 - Experience with I²C and UART communication protocols.  
 - Worked with real-world sensor calibration and environmental variability.  
