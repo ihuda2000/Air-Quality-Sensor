@@ -1,0 +1,15 @@
+[Unit]
+Description=Air Quality Logger (Enviro+ & PMS5003)
+After=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/air-quality-sensor/software
+EnvironmentFile=/home/pi/air-quality-sensor/software/service/env
+ExecStart=/home/pi/air-quality-sensor/software/.venv/bin/python /home/pi/air-quality-sensor/software/sensor.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
